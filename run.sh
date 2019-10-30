@@ -2,16 +2,16 @@
 set -e
 
 echo 'running splitter...'
-python src/preprocess/splitter.py
+python3 src/preprocess/splitter.py
 
 echo 'running baseline_algorithm...'
-python src/baseline_algorithm/rec_popular.py
+python3 src/baseline_algorithm/rec_popular.py
 echo 'done'
 
 echo 'running verify_subm...'
-python src/verify_submission/verify_subm.py
+python3 src/verify_submission/verify_subm.py
 echo 'done'
 
 echo 'running score_subm...'
-python src/score_submission/score_subm.py
+python3 src/score_submission/score_subm.py
 echo 'done'
