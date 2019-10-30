@@ -4,10 +4,7 @@ import pandas as pd
 
 def read_into_df(file):
     """Read csv file into data frame."""
-    df = (
-        pd.read_csv(file)
-            .set_index(['user_id', 'session_id', 'timestamp', 'step'])
-    )
+    df = pd.read_csv(file).set_index(["user_id", "session_id", "timestamp", "step"])
 
     return df
 
@@ -46,23 +43,29 @@ def score_submissions(subm_csv, gt_csv, objective_function):
 
     print(f"Reading ground truth data {gt_csv} ...")
     df_gt = read_into_df(gt_csv)
+    print(list(df_gt), end="\n\n\n")
 
     print(f"Reading submission data {subm_csv} ...")
     df_subm = read_into_df(subm_csv)
+    print(list(df_subm), end="\n\n\n")
 
     # create dataframe containing the ground truth to target rows
-    cols = ['reference', 'impressions', 'prices']
+    cols = ["reference", "impressions", "prices"]
     df_key = df_gt.loc[:, cols]
 
     # append key to submission file
-    df_subm_with_key = df_key.join(df_subm, how='inner')
+    df_subm_with_key = df_key.join(df_subm, how="inner")
+    print(type(df_subm_with_key))
+    print(df_subm_with_key)
     df_subm_with_key.reference = df_subm_with_key.reference.astype(int)
     df_subm_with_key = convert_string_to_list(
-        df_subm_with_key, 'item_recommendations', 'item_recommendations'
+        df_subm_with_key, "item_recommendations", "item_recommendations"
     )
 
+    print(type(df_subm_with_key))
+    print(df_subm_with_key)
     # score each row
-    df_subm_with_key['score'] = df_subm_with_key.apply(objective_function, axis=1)
+    df_subm_with_key["score"] = df_subm_with_key.apply(objective_function, axis=1)
     mrr = df_subm_with_key.score.mean()
 
     return mrr

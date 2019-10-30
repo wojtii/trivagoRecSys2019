@@ -21,8 +21,7 @@ def get_popularity(df):
     mask = df["action_type"] == "clickout item"
     df_clicks = df[mask]
     df_item_clicks = (
-        df_clicks
-        .groupby("reference")
+        df_clicks.groupby("reference")
         .size()
         .reset_index(name="n_clicks")
         .transform(lambda x: x.astype(int))
@@ -50,9 +49,10 @@ def explode(df_in, col_expl):
     df.loc[:, col_expl] = df[col_expl].apply(string_to_array)
 
     df_out = pd.DataFrame(
-        {col: np.repeat(df[col].values,
-                        df[col_expl].str.len())
-         for col in df.columns.drop(col_expl)}
+        {
+            col: np.repeat(df[col].values, df[col_expl].str.len())
+            for col in df.columns.drop(col_expl)
+        }
     )
 
     df_out.loc[:, col_expl] = np.concatenate(df[col_expl].values)
@@ -65,9 +65,8 @@ def group_concat(df, gr_cols, col_concat):
     """Concatenate multiple rows into one."""
 
     df_out = (
-        df
-        .groupby(gr_cols)[col_concat]
-        .apply(lambda x: ' '.join(x))
+        df.groupby(gr_cols)[col_concat]
+        .apply(lambda x: " ".join(x))
         .to_frame()
         .reset_index()
     )
@@ -85,22 +84,15 @@ def calc_recommendation(df_expl, df_pop):
     :return: Data frame with sorted impression list according to popularity in df_pop
     """
 
-    df_expl_clicks = (
-        df_expl[GR_COLS + ["impressions"]]
-        .merge(df_pop,
-               left_on="impressions",
-               right_on="reference",
-               how="left")
+    df_expl_clicks = df_expl[GR_COLS + ["impressions"]].merge(
+        df_pop, left_on="impressions", right_on="reference", how="left"
     )
 
-    df_out = (
-        df_expl_clicks
-        .assign(impressions=lambda x: x["impressions"].apply(str))
-        .sort_values(GR_COLS + ["n_clicks"],
-                     ascending=[True, True, True, True, False])
-    )
+    df_out = df_expl_clicks.assign(
+        impressions=lambda x: x["impressions"].apply(str)
+    ).sort_values(GR_COLS + ["n_clicks"], ascending=[True, True, True, True, False])
 
     df_out = group_concat(df_out, GR_COLS, "impressions")
-    df_out.rename(columns={'impressions': 'item_recommendations'}, inplace=True)
+    df_out.rename(columns={"impressions": "item_recommendations"}, inplace=True)
 
     return df_out
