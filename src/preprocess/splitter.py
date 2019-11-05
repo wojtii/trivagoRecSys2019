@@ -1,7 +1,7 @@
 from pathlib import Path
+
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
-import numpy as np
 
 current_directory = Path(__file__).absolute().parent
 data_directory = current_directory.joinpath("..", "..", "data")
@@ -14,7 +14,7 @@ split_val = 0.8
 pbar = ProgressBar()
 pbar.register()
 
-df = dd.read_csv(train_src)
+df = dd.read_csv(train_src).repartition(npartitions=10)
 
 part_split_idx = int(df.npartitions * split_val)
 df_part_split = df.get_partition(part_split_idx)
@@ -25,16 +25,25 @@ df_part_split_test = df_part_split.loc[df_part_split.index >= part_row_idx]
 
 df_train = df.partitions[:part_split_idx].append(df_part_split_train)
 df_train.to_csv(train_dst, single_file=True)
-df_test_pd = df.partitions[part_split_idx + 1 :].append(df_part_split_test).compute()
+df_test_pd = (
+    df.partitions[part_split_idx + 1 :]
+    .append(df_part_split_test)
+    .compute()
+    .reset_index(drop=True)
+)
 df_test_pd.to_csv(gt_dst)
 
-test_first_steps_idxs = df_test_pd[df_test_pd.step == 1].index
-test_last_steps_idxs = {x - 1 for x in test_first_steps_idxs[1:]}
+test_first_steps_idxs = (
+    df_test_pd[df_test_pd.step == 1].drop_duplicates("session_id").index
+)
+test_last_steps_idxs = {i - 1 for i in test_first_steps_idxs}
+
 df_test_pd.loc[
     (df_test_pd.action_type == "clickout item")
-    & (df_test_pd.index.isin(test_last_steps_idxs)),
+    & (df_test_pd.index.isin(test_last_steps_idxs))
+    & ~(df_test_pd.duplicated(subset="session_id", keep="last")),
     "reference",
-] = np.nan
+] = ""
 
 df_test_pd.to_csv(test_dst)
 
