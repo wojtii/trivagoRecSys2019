@@ -815,9 +815,9 @@ class NNDataGenerator:
             current_rows[:, 35] = np.argsort(np.argsort(unleaked_clickout_count))
             current_rows[:, 36] = StandardScaler().fit_transform([row.prices])
 
-            current_rows[:, 37] = np.mean(current_rows[:, 30])
-            current_rows[:, 38] = np.mean(current_rows[:, 28])
-            current_rows[:, 39] = np.mean(current_rows[:, 26])
+            current_rows[:, 37] = np.mean(current_rows[:, 29])
+            current_rows[:, 38] = np.mean(current_rows[:, 27])
+            current_rows[:, 39] = np.mean(current_rows[:, 25])
 
             if training or row.item_id == self.transformed_nan_item:
                 df_list.append(current_rows)
