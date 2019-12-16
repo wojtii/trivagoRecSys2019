@@ -523,7 +523,6 @@ class NNDataGenerator:
             + is_interacted_columns
             + is_clicked_columns
             + [
-                "mm_price",
                 "equal_last_impressions",
                 "price_diff",
                 "price",
@@ -532,17 +531,7 @@ class NNDataGenerator:
                 "is_clicked",
                 "is_interacted",
                 "item_popularity",
-                "is_interacted_image",
-                "is_interacted_deals",
-                "interaction_count",
-                "clickout_count",
-                "click_diff",
-                "equal_last_item",
                 "global_clickout_count_rank",
-                "rg_price",
-                "interaction_count_avg",
-                "avg_is_interacted_image",
-                "avg_is_interacted",
             ]
         )
 
@@ -718,7 +707,7 @@ class NNDataGenerator:
 
             padded_prices = [row.prices[0]] * 2 + row.prices + [row.prices[-1]] * 2
             price_rank = compute_rank(row.prices)
-            current_rows = np.zeros([len(row.impressions), 40], dtype=object)
+            current_rows = np.zeros([len(row.impressions), 29], dtype=object)
             current_rows[:, 0] = row.user_id
             current_rows[:, 1] = transformed_impressions
             current_rows[:, 2] = label
@@ -738,86 +727,57 @@ class NNDataGenerator:
             current_rows[:, 12] = [np.array(current_session_actions)] * len(
                 row.impressions
             )
-            current_rows[:, 13] = (
-                MinMaxScaler()
-                .fit_transform(np.array(row.prices).reshape(-1, 1))
-                .reshape(-1)
-            )
-            current_rows[:, 14] = row.prices
-            current_rows[:, 15] = self.last_click_sess_dict[row.session_id]
-            current_rows[:, 16] = (
+            current_rows[:, 13] = row.prices
+            current_rows[:, 14] = self.last_click_sess_dict[row.session_id]
+            current_rows[:, 15] = (
                 self.last_impressions_dict[row.session_id]
                 == transformed_impressions.tolist()
             )
-            current_rows[:, 17] = self.sess_last_imp_idx_dict[row.session_id]
-            current_rows[:, 18] = last_interact_index
-            current_rows[:, 19] = (
+            current_rows[:, 16] = self.sess_last_imp_idx_dict[row.session_id]
+            current_rows[:, 17] = last_interact_index
+            current_rows[:, 18] = (
                 row.prices - self.sess_last_price_dict[row.session_id]
                 if self.sess_last_price_dict[row.session_id]
                 else 0
             )
 
-            current_rows[:, 20] = (
+            current_rows[:, 19] = (
                 self.sess_last_price_dict[row.session_id]
                 if self.sess_last_price_dict[row.session_id]
                 else 0
             )
-            current_rows[:, 21] = (
+            current_rows[:, 20] = (
                 row.prices / self.sess_last_price_dict[row.session_id]
                 if self.sess_last_price_dict[row.session_id]
                 else 0
             )
-            current_rows[:, 22] = [
+            current_rows[:, 21] = [
                 padded_prices[i : i + 5] for i in range(len(row.impressions))
             ]
 
-            current_rows[:, 23] = row.city_platform
-            current_rows[:, 24] = [
+            current_rows[:, 22] = row.city_platform
+            current_rows[:, 23] = [
                 imp in self.past_interaction_dict[row.user_id]
                 for imp in transformed_impressions
             ]
-            current_rows[:, 25] = [
+            current_rows[:, 24] = [
                 imp
                 in session_interactions[session_id][
                     : self.config.sess_length + sess_step - 1
                 ]
                 for imp in transformed_impressions
             ]
-            current_rows[:, 26] = [
+            current_rows[:, 25] = [
                 self.item_popularity_dict[imp] for imp in row.impressions
             ]
-            current_rows[:, 27] = 0
-            current_rows[:, 28] = [
-                1 if imp in interaction_deals_count_dict else 0
-                for imp in transformed_impressions
-            ]
 
-            current_rows[:, 29] = [
-                self.interaction_count_dict[imp]
-                if imp in self.interaction_count_dict
-                else 0
-                for imp in transformed_impressions
-            ]
-            current_rows[:, 30] = unleaked_clickout_count
-            current_rows[:, 31] = [
-                self.past_interaction_dict[row.user_id][::-1].index(imp)
-                if imp in self.past_interaction_dict[row.user_id]
-                else 0
-                for imp in transformed_impressions
-            ]
-            current_rows[:, 32] = [np.array(padded_other_is_interacted)] * len(
+            current_rows[:, 26] = [np.array(padded_other_is_interacted)] * len(
                 row.impressions
             )
-            current_rows[:, 33] = [np.array(padded_other_is_clicked)] * len(
+            current_rows[:, 27] = [np.array(padded_other_is_clicked)] * len(
                 row.impressions
             )
-            current_rows[:, 34] = transformed_impressions == row.last_item
-            current_rows[:, 35] = np.argsort(np.argsort(unleaked_clickout_count))
-            current_rows[:, 36] = StandardScaler().fit_transform([row.prices])
-
-            current_rows[:, 37] = np.mean(current_rows[:, 29])
-            current_rows[:, 38] = np.mean(current_rows[:, 27])
-            current_rows[:, 39] = np.mean(current_rows[:, 25])
+            current_rows[:, 28] = np.argsort(np.argsort(unleaked_clickout_count))
 
             if training or row.item_id == self.transformed_nan_item:
                 df_list.append(current_rows)
@@ -853,7 +813,6 @@ class NNDataGenerator:
             "item_id": "int32",
             "label": "int32",
             "price_rank": "int32",
-            "mm_price": "float32",
             "price": "float32",
             "last_click_item": "int32",
             "equal_last_impressions": "int8",
@@ -866,17 +825,7 @@ class NNDataGenerator:
             "is_clicked": "int8",
             "is_interacted": "int8",
             "item_popularity": "int32",
-            "is_interacted_image": "int8",
-            "is_interacted_deals": "int8",
-            "interaction_count": "int32",
-            "clickout_count": "int32",
-            "click_diff": "float32",
-            "equal_last_item": "int8",
             "global_clickout_count_rank": "int8",
-            "rg_price": "float32",
-            "interaction_count_avg": "float32",
-            "avg_is_interacted_image": "float32",
-            "avg_is_interacted": "float32",
         }
         df_columns = [
             "user_id",
@@ -892,7 +841,6 @@ class NNDataGenerator:
             "id",
             "past_interactions_sess",
             "past_actions_sess",
-            "mm_price",
             "price",
             "last_click_item",
             "equal_last_impressions",
@@ -906,19 +854,9 @@ class NNDataGenerator:
             "is_clicked",
             "is_interacted",
             "item_popularity",
-            "is_interacted_image",
-            "is_interacted_deals",
-            "interaction_count",
-            "clickout_count",
-            "click_diff",
             "other_is_interacted",
             "other_is_clicked",
-            "equal_last_item",
             "global_clickout_count_rank",
-            "rg_price",
-            "interaction_count_avg",
-            "avg_is_interacted_image",
-            "avg_is_interacted",
         ]
         df = pd.DataFrame(data, columns=df_columns)
         df = df.astype(dtype=dtype_dict)
