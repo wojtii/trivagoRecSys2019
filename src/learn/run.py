@@ -20,14 +20,12 @@ class Configuration:
         self.sequence_length = 10
         self.sess_length = 30
         self.num_embeddings = {}
-        self.verbose = True
         self.hidden_dims = [256, 128]
 
     def __getitem__(self, x):
         return getattr(self, x)
 
     def __setitem__(self, x, v):
-        """make configuration subscriptable"""
         return setattr(self, x, v)
 
 
@@ -51,6 +49,7 @@ def get_adam_optimizer(network, params):
 def compute_mean_reciprocal_rank(rs):
     rs = (np.asarray(r).nonzero()[0] for r in rs)
     return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
+
 
 def get_prediction(loader, net, crit):
     net.eval()
