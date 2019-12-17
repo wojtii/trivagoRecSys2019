@@ -31,13 +31,6 @@ class Net(torch.nn.Module):
             num_layers=2,
             batch_first=True,
         )
-        self.other_item_gru = torch.nn.GRU(
-            input_size=self.categorical_emb_dim,
-            hidden_size=self.categorical_emb_dim // 2,
-            bidirectional=True,
-            num_layers=1,
-            batch_first=True,
-        )
 
         self.cont_linear = torch.nn.Linear(
             config.continuous_size, self.categorical_emb_dim

@@ -10,7 +10,7 @@ current_directory = Path(__file__).absolute().parent
 data_directory = current_directory.joinpath("..", "..", "data")
 train_src = data_directory.joinpath("train.csv")
 test_src = data_directory.joinpath("test.csv")
-NROWS = 10000
+NROWS = 1000000
 DUMMY_ITEM = -1
 DUMMY_ACTION = None
 DUMMY_IMPRESSION_INDEX = 0
@@ -49,9 +49,7 @@ class CategoricalEncoder:
 
 
 class NNDataLoader:
-    def __init__(
-            self, data, config, shuffle=True, batch_size=128, continuous_features=None
-    ):
+    def __init__(self, data, config, shuffle=True, batch_size=128, continuous_features=None):
         self.item_id = torch.LongTensor(data.item_id.values)
         self.config = config
         self.label = torch.FloatTensor(data.label.values)
@@ -89,32 +87,29 @@ class NNDataLoader:
         return self
 
     def __next__(self):
-        if self.batch_id * self.batch_size <= len(self.indices):
-            current_indices = self.indices[
-                              self.batch_id * self.batch_size: (self.batch_id + 1) * self.batch_size
-                              ]
-            result = [
-                self.item_id[current_indices],
-                self.label[current_indices],
-                self.past_interactions[current_indices],
-                self.past_interaction_masks[current_indices],
-                self.price_rank[current_indices],
-                self.city[current_indices],
-                self.last_item[current_indices],
-                self.impression_index[current_indices],
-                self.continuous_features[current_indices],
-                self.past_interactions_sess[current_indices],
-                self.past_actions_sess[current_indices],
-                self.last_click_item[current_indices],
-                self.last_click_impression[current_indices],
-                self.last_interact_index[current_indices],
-                self.neighbor_prices[current_indices],
-                self.city_platform[current_indices],
-            ]
-            self.batch_id += 1
-            return result
-        else:
+        if self.batch_id * self.batch_size > len(self.indices):
             raise StopIteration
+
+        current_indices = self.indices[self.batch_id * self.batch_size: (self.batch_id + 1) * self.batch_size]
+        self.batch_id += 1
+        return [
+            self.item_id[current_indices],
+            self.label[current_indices],
+            self.past_interactions[current_indices],
+            self.past_interaction_masks[current_indices],
+            self.price_rank[current_indices],
+            self.city[current_indices],
+            self.last_item[current_indices],
+            self.impression_index[current_indices],
+            self.continuous_features[current_indices],
+            self.past_interactions_sess[current_indices],
+            self.past_actions_sess[current_indices],
+            self.last_click_item[current_indices],
+            self.last_click_impression[current_indices],
+            self.last_interact_index[current_indices],
+            self.neighbor_prices[current_indices],
+            self.city_platform[current_indices],
+        ]
 
 
 class NNDataGenerator:
@@ -135,86 +130,50 @@ class NNDataGenerator:
         test = pd.read_csv(test_src, nrows=NROWS)
         test["id"] = np.arange(len(train), len(train) + len(test))
 
-        train.rename(
-            columns={"reference": "item_id", "action_type": "action"}, inplace=True
-        )
-        test.rename(
-            columns={"reference": "item_id", "action_type": "action"}, inplace=True
-        )
-
+        train.rename(columns={"reference": "item_id", "action_type": "action"}, inplace=True)
+        test.rename(columns={"reference": "item_id", "action_type": "action"}, inplace=True)
         train["in_impressions"] = True
         train.loc[~train.impressions.isna(), "in_impressions"] = train.loc[
             ~train.impressions.isna()
         ].apply(lambda row: row.item_id in row.impressions.split("|"), axis=1)
-        train = (
-            train.loc[train.in_impressions]
-                .drop("in_impressions", axis=1)
-                .reset_index(drop=True)
-        )
+        train = train.loc[train.in_impressions].drop("in_impressions", axis=1).reset_index(drop=True)
         test["in_impressions"] = True
-        test.loc[
-            (~test.impressions.isna()) & (~test.item_id.isna()), "in_impressions"
-        ] = test.loc[(~test.impressions.isna()) & (~test.item_id.isna())].apply(
-            lambda row: row.item_id in row.impressions.split("|"), axis=1
-        )
-        test = (
-            test.loc[test.in_impressions]
-                .drop("in_impressions", axis=1)
-                .reset_index(drop=True)
-        )
+        test.loc[(~test.impressions.isna()) & (~test.item_id.isna()), "in_impressions"] = test.loc[
+            (~test.impressions.isna()) & (~test.item_id.isna())].apply(
+            lambda row: row.item_id in row.impressions.split("|"), axis=1)
+        test = test.loc[test.in_impressions].drop("in_impressions", axis=1).reset_index(drop=True)
 
         train["item_id"] = train["item_id"].apply(str)
-        train.loc[~train.impressions.isna(), "impressions"] = train.loc[
-            ~train.impressions.isna()
-        ].impressions.apply(lambda x: x.split("|"))
-        train.loc[~train.prices.isna(), "prices"] = (
-            train.loc[~train.prices.isna()]
-                .prices.apply(lambda x: x.split("|"))
-                .apply(lambda x: [int(p) for p in x])
-        )
+        train.loc[~train.impressions.isna(), "impressions"] = train.loc[~train.impressions.isna()].impressions.apply(
+            lambda x: x.split("|"))
+        train.loc[~train.prices.isna(), "prices"] = train.loc[~train.prices.isna()].prices.apply(
+            lambda x: x.split("|")).apply(lambda x: [int(p) for p in x])
 
         test["item_id"] = test["item_id"].apply(str)
-        test.loc[~test.impressions.isna(), "impressions"] = test.loc[
-            ~test.impressions.isna()
-        ].impressions.apply(lambda x: x.split("|"))
-        test.loc[~test.prices.isna(), "prices"] = (
-            test.loc[~test.prices.isna()]
-                .prices.apply(lambda x: x.split("|"))
-                .apply(lambda x: [int(p) for p in x])
-        )
+        test.loc[~test.impressions.isna(), "impressions"] = test.loc[~test.impressions.isna()].impressions.apply(
+            lambda x: x.split("|"))
+        test.loc[~test.prices.isna(), "prices"] = test.loc[~test.prices.isna()].prices.apply(
+            lambda x: x.split("|")).apply(lambda x: [int(p) for p in x])
 
         data = pd.concat([train, test], axis=0)
         data = data.reset_index(drop=True)
         all_items = []
 
-        for imp in data.loc[~data.impressions.isna()].impressions.tolist() + [
-            data.item_id.apply(str).tolist()
-        ]:
+        for imp in data.loc[~data.impressions.isna()].impressions.tolist() + [data.item_id.apply(str).tolist()]:
             all_items += imp
 
         unique_items = OrderedSet(all_items)
         unique_actions = OrderedSet(data.action.values)
 
-        train_session_interactions = dict(
-            train.groupby("session_id")["item_id"].apply(list)
-        )
-        test_session_interactions = dict(
-            test.groupby("session_id")["item_id"].apply(list)
-        )
-
+        train_session_interactions = dict(train.groupby("session_id")["item_id"].apply(list))
+        test_session_interactions = dict(test.groupby("session_id")["item_id"].apply(list))
         train_session_actions = dict(train.groupby("session_id")["action"].apply(list))
         test_session_actions = dict(test.groupby("session_id")["action"].apply(list))
 
-        train["sess_step"] = (
-            train.groupby("session_id")["timestamp"].rank(method="max").apply(int)
-        )
-        test["sess_step"] = (
-            test.groupby("session_id")["timestamp"].rank(method="max").apply(int)
-        )
+        train["sess_step"] = train.groupby("session_id")["timestamp"].rank(method="max").apply(int)
+        test["sess_step"] = test.groupby("session_id")["timestamp"].rank(method="max").apply(int)
 
-        train["city_platform"] = train.apply(
-            lambda x: x["city"] + x["platform"], axis=1
-        )
+        train["city_platform"] = train.apply(lambda x: x["city"] + x["platform"], axis=1)
         test["city_platform"] = test.apply(lambda x: x["city"] + x["platform"], axis=1)
         train["last_item"] = np.nan
         test["last_item"] = np.nan
@@ -224,12 +183,8 @@ class NNDataGenerator:
         train["last_item"] = train_shifted_item_id
         test["last_item"] = test_shifted_item_id
 
-        train["step_rank"] = train.groupby("session_id")["timestamp"].rank(
-            method="max", ascending=True
-        )
-        test["step_rank"] = test.groupby("session_id")["timestamp"].rank(
-            method="max", ascending=True
-        )
+        train["step_rank"] = train.groupby("session_id")["timestamp"].rank(method="max", ascending=True)
+        test["step_rank"] = test.groupby("session_id")["timestamp"].rank(method="max", ascending=True)
 
         train.loc[(train.step_rank == 1), "last_item"] = DUMMY_ITEM
         test.loc[(test.step_rank == 1), "last_item"] = DUMMY_ITEM
@@ -242,10 +197,7 @@ class NNDataGenerator:
         train = train.merge(data_feature, on="id", how="left")
         test = test.merge(data_feature, on="id", how="left")
 
-        self.cat_encoders = {}
-        for col in self.all_cat_columns:
-            self.cat_encoders[col] = CategoricalEncoder()
-
+        self.cat_encoders = {col: CategoricalEncoder() for col in self.all_cat_columns}
         self.cat_encoders["item_id"].fit(list(unique_items) + [DUMMY_ITEM])
         self.cat_encoders["city"].fit(data.city.values)
         self.cat_encoders["city_platform"].fit(data.city_platform.values)
@@ -257,9 +209,8 @@ class NNDataGenerator:
             test[col] = self.cat_encoders[col].transform(test[col].values)
             self.config.num_embeddings[col] = self.cat_encoders[col].n_elements
 
-        self.config.transformed_clickout_action = (
-            self.transformed_clickout_action
-        ) = self.cat_encoders["action"].transform(["clickout item"])[0]
+        self.config.transformed_clickout_action = (self.transformed_clickout_action
+                                                   ) = self.cat_encoders["action"].transform(["clickout item"])[0]
         self.config.transformed_dummy_action = (
             self.transformed_dummy_action
         ) = self.cat_encoders["action"].transform([DUMMY_ACTION])[0]
@@ -514,8 +465,8 @@ class NNDataGenerator:
                              : self.config.sess_length + sess_step - 1]) == self.transformed_interaction_deals
             )
             interaction_deals_item = \
-            np.array(session_interactions[session_id][: self.config.sess_length + sess_step - 1])[
-                interaction_deals_indices]
+                np.array(session_interactions[session_id][: self.config.sess_length + sess_step - 1])[
+                    interaction_deals_indices]
             unleaked_clickout_count = [
                 self.clickout_count_dict[imp] if imp in self.clickout_count_dict else 0
                 for imp in transformed_impressions

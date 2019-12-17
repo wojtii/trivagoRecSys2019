@@ -14,8 +14,8 @@ class Configuration:
         self.num_epochs = 1
         self.batch_size = 1024
         self.loss = torch.nn.BCELoss
-        self.categorical_emb_dim = 128
-        self.learning_rate = 0.001
+        self.categorical_emb_dim = 256
+        self.learning_rate = 0.01
         self.weight_decay = 0
         self.sequence_length = 10
         self.sess_length = 30
@@ -33,7 +33,6 @@ def seed_everything(seed=42):
     random.seed(seed)
     torch.manual_seed(seed)
     np.random.seed(seed)
-    os.environ["PYTHONHASHSEED"] = str(seed)
 
 
 def get_adam_optimizer(network, params):
@@ -41,8 +40,6 @@ def get_adam_optimizer(network, params):
         network.parameters(),
         lr=params["learning_rate"],
         weight_decay=params["weight_decay"],
-        eps=1e-07,
-        amsgrad=True,
     )
 
 
@@ -51,7 +48,7 @@ def compute_mean_reciprocal_rank(rs):
     return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
 
 
-def get_prediction(loader, net, crit):
+def get_prediction(loader, net, loss_function):
     net.eval()
     all_scores = []
     validation_loss = []
@@ -59,7 +56,7 @@ def get_prediction(loader, net, crit):
         with torch.no_grad():
             prediction = net(*[i for idx, i in enumerate(data) if idx != 1])
             targets = data[1]
-            loss = crit(prediction, targets).item()
+            loss = loss_function(prediction, targets).item()
             prediction = prediction.detach().cpu().numpy().tolist()
             all_scores += prediction
             validation_loss.append(loss)
@@ -67,8 +64,8 @@ def get_prediction(loader, net, crit):
     return all_scores, validation_loss
 
 
-def evaluate_valid(val_loader, val_df, net, crit):
-    val_df['score'], val_loss = get_prediction(val_loader, net, crit)
+def evaluate_valid(val_loader, val_df, net, loss_function):
+    val_df['score'], val_loss = get_prediction(val_loader, net, loss_function)
     grouped_val = val_df.groupby('session_id')
     rss = []
     for session_id, group in grouped_val:
@@ -84,22 +81,22 @@ def run():
     configuration = Configuration()
     data_gen = NNDataGenerator(configuration)
     valid_data = data_gen.val_data
-    crit = configuration.loss()
+    loss_function = configuration.loss()
     net = Net(configuration)
-    optim = get_adam_optimizer(net, configuration)
+    optimizer = get_adam_optimizer(net, configuration)
     val_loader = data_gen.evaluate_data_valid()
     train_loader = data_gen.instance_a_train_loader()
     for i in range(configuration.num_epochs):
         net.train()
         for data in tqdm(train_loader):
-            optim.zero_grad()
+            optimizer.zero_grad()
             prediction = net(*[i for idx, i in enumerate(data) if idx != 1])
             targets = data[1]
-            loss = crit(prediction, targets)
+            loss = loss_function(prediction, targets)
             loss.backward()
-            optim.step()
+            optimizer.step()
 
-        return evaluate_valid(val_loader, valid_data, net, crit)
+        return evaluate_valid(val_loader, valid_data, net, loss_function)
 
 
 if __name__ == "__main__":
