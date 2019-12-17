@@ -1,3 +1,4 @@
+# based on https://blog.rosetta.ai/the-5th-place-approach-to-the-2019-acm-recsys-challenge-by-team-rosettaai-eb3c4e6178c4
 from pathlib import Path
 import random
 
